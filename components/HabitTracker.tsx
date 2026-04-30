@@ -3,7 +3,9 @@
 import AddHabit from "@/components/AddHabit";
 import DateNavigator from "@/components/DateNavigator";
 import HabitList from "@/components/HabitList";
+import HabitOverview from "@/components/HabitOverview";
 import TaskList from "@/components/TaskList";
+import { useHabitOverview } from "@/hooks/useHabitOverview";
 import { useHabits } from "@/hooks/useHabits";
 import { useTasks } from "@/hooks/useTasks";
 import { formatDisplayDate, toDateKey } from "@/lib/date";
@@ -33,6 +35,11 @@ export default function HabitTracker() {
     editTask,
     removeTask,
   } = useTasks(selectedDate);
+  const {
+    periods: overviewPeriods,
+    loading: overviewLoading,
+    error: overviewError,
+  } = useHabitOverview(selectedDate, habits, completedByHabit);
 
   const progress =
     habits.length === 0 ? 0 : (completedCount / habits.length) * 100;
@@ -72,6 +79,12 @@ export default function HabitTracker() {
         <DateNavigator
           selectedDate={selectedDate}
           onSelectDate={setSelectedDate}
+        />
+
+        <HabitOverview
+          periods={overviewPeriods}
+          loading={overviewLoading}
+          error={overviewError}
         />
 
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">

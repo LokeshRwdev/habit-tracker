@@ -94,6 +94,20 @@ export async function getHabitLogs(date: string) {
   return data satisfies HabitLog[];
 }
 
+export async function getHabitLogsInRange(startDate: string, endDate: string) {
+  const { data, error } = await supabase
+    .from("habit_logs")
+    .select("id, habit_id, date, completed, created_at")
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies HabitLog[];
+}
+
 export async function toggleHabit(
   habit_id: string,
   date: string,

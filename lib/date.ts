@@ -34,3 +34,35 @@ export function formatShortDate(dateKey: string) {
     day: "numeric",
   }).format(fromDateKey(dateKey));
 }
+
+export function startOfWeekKey(dateKey: string) {
+  const date = fromDateKey(dateKey);
+  const day = date.getDay();
+  const daysFromMonday = day === 0 ? 6 : day - 1;
+  date.setDate(date.getDate() - daysFromMonday);
+
+  return toDateKey(date);
+}
+
+export function startOfMonthKey(dateKey: string) {
+  const date = fromDateKey(dateKey);
+
+  return toDateKey(new Date(date.getFullYear(), date.getMonth(), 1));
+}
+
+export function startOfYearKey(dateKey: string) {
+  const date = fromDateKey(dateKey);
+
+  return toDateKey(new Date(date.getFullYear(), 0, 1));
+}
+
+export function daysBetweenInclusive(startDateKey: string, endDateKey: string) {
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  const startDate = fromDateKey(startDateKey);
+  const endDate = fromDateKey(endDateKey);
+
+  return (
+    Math.floor((endDate.getTime() - startDate.getTime()) / millisecondsPerDay) +
+    1
+  );
+}
