@@ -123,14 +123,15 @@ export async function getTasks(date: string) {
   const { data, error } = await supabase
     .from("tasks")
     .select("id, title, note, date, completed, created_at")
-    .eq("date", date)
+    .lte("date", date)
     .order("created_at", { ascending: true });
 
   if (error) {
     throw error;
   }
 
-  return data satisfies Task[];
+  return data.filter((task) => task.date === date || !task.completed) satisfies
+    Task[];
 }
 
 export async function createTask(task: NewTask) {
