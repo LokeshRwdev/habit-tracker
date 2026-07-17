@@ -5,7 +5,8 @@ import {
   TradingPeriodStats,
 } from "@/hooks/useTradingOverview";
 import { formatShortDate } from "@/lib/date";
-import { useState } from "react";
+import { formatCurrency, formatPoints } from "@/lib/tradingMetrics";
+import { useMemo, useState } from "react";
 
 type TradingOverviewProps = {
   periods: TradingPeriodStats[];
@@ -13,7 +14,7 @@ type TradingOverviewProps = {
   error: string;
 };
 
-const PERIODS: TradingOverviewPeriod[] = ["week", "month", "year"];
+const PERIODS: TradingOverviewPeriod[] = ["day", "week", "month", "year"];
 
 export default function TradingOverview({
   periods,
@@ -26,8 +27,12 @@ export default function TradingOverview({
   const activePeriod =
     periods.find((period) => period.period === selectedPeriod) ?? periods[0];
 
+  const dailyPeriod = useMemo(() => periods.find((p) => p.period === "day"), [periods]);
+  const weeklyPeriod = useMemo(() => periods.find((p) => p.period === "week"), [periods]);
+  const monthlyPeriod = useMemo(() => periods.find((p) => p.period === "month"), [periods]);
+
   return (
-    <section className="rounded-2xl border border-indigo-200/80 bg-white/80 p-4 shadow-xl shadow-indigo-100/60 backdrop-blur sm:p-5">
+    <section className="rounded-2xl border border-[#e4e6ea] bg-white p-4 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-slate-300 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <button
           type="button"
@@ -43,8 +48,16 @@ export default function TradingOverview({
             <span className="mt-1 block text-lg font-semibold text-slate-950">
               Trading performance
             </span>
-            <span className="mt-1 block text-sm text-slate-600">
-              Win rate and target/SL hits for the selected period.
+            <span className="mt-2 flex flex-wrap items-center gap-1.5 text-xs font-bold">
+              <span className={`rounded-md px-2 py-0.5 border ${dailyPeriod && dailyPeriod.totalPnL < 0 ? "bg-rose-50 text-rose-800 border-rose-200" : "bg-emerald-50 text-emerald-800 border-emerald-200"}`}>
+                Daily PnL: {formatCurrency(dailyPeriod?.totalPnL ?? 0)}
+              </span>
+              <span className={`rounded-md px-2 py-0.5 border ${weeklyPeriod && weeklyPeriod.totalPnL < 0 ? "bg-rose-50 text-rose-800 border-rose-200" : "bg-emerald-50 text-emerald-800 border-emerald-200"}`}>
+                Wk: {formatCurrency(weeklyPeriod?.totalPnL ?? 0)}
+              </span>
+              <span className={`rounded-md px-2 py-0.5 border ${monthlyPeriod && monthlyPeriod.totalPnL < 0 ? "bg-rose-50 text-rose-800 border-rose-200" : "bg-emerald-50 text-emerald-800 border-emerald-200"}`}>
+                Mo: {formatCurrency(monthlyPeriod?.totalPnL ?? 0)}
+              </span>
             </span>
           </span>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 transition-all duration-300">
@@ -62,7 +75,7 @@ export default function TradingOverview({
           }`}
         >
           <div className="overflow-hidden">
-            <div className="grid grid-cols-3 gap-1 rounded-full bg-indigo-50 p-1">
+            <div className="grid grid-cols-4 gap-1 rounded-full bg-indigo-50 p-1">
               {PERIODS.map((period) => (
                 <button
                   key={period}
@@ -107,7 +120,12 @@ export default function TradingOverview({
               </p>
             ) : (
               <div className="mt-5 space-y-5">
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <MetricCard
+                    label={`${activePeriod.label} PnL`}
+                    value={formatCurrency(activePeriod.totalPnL || 0)}
+                    detail={`${formatPoints(activePeriod.totalPoints || 0)} captured`}
+                  />
                   <MetricCard
                     label={activePeriod.label}
                     value={`${activePeriod.totalTrades} trades`}

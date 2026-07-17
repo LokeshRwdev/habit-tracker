@@ -1,4 +1,5 @@
 import { Trade, TradeOutcome, TradeUpdates } from "@/lib/queries";
+import { calculateTradeMetrics, cleanTradeNote, formatCurrency, formatPoints } from "@/lib/tradingMetrics";
 import { FormEvent, useState } from "react";
 
 type TradeItemProps = {
@@ -17,8 +18,9 @@ export default function TradeItem({
   const [symbol, setSymbol] = useState(trade.symbol ?? "");
   const [entry, setEntry] = useState(trade.entry);
   const [exit, setExit] = useState(trade.exit);
+  const [quantity, setQuantity] = useState(String(trade.quantity || 1));
   const [outcome, setOutcome] = useState<TradeOutcome>(trade.outcome);
-  const [note, setNote] = useState(trade.note ?? "");
+  const [note, setNote] = useState(cleanTradeNote(trade.note) ?? "");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,6 +29,7 @@ export default function TradeItem({
       symbol: symbol.trim() || null,
       entry: entry.trim(),
       exit: exit.trim(),
+      quantity: parseFloat(quantity) || 1,
       outcome,
       note: note.trim() || null,
     });
@@ -64,6 +67,8 @@ export default function TradeItem({
   };
 
   const badge = outcomeConfig[trade.outcome] || outcomeConfig.TARGET_HIT;
+  const metrics = calculateTradeMetrics(trade);
+  const displayNote = cleanTradeNote(trade.note);
 
   if (isEditing) {
     return (
@@ -72,17 +77,6 @@ export default function TradeItem({
         className="space-y-3 rounded-xl border border-indigo-200 bg-white/95 p-3 shadow-sm"
       >
         <div className="grid grid-cols-3 gap-2">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-500">
-              Symbol (Opt)
-            </label>
-            <input
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-              className="h-9 w-full rounded-lg border border-indigo-200 bg-indigo-50/50 px-2.5 text-xs font-medium outline-none focus:border-indigo-400 focus:bg-white"
-              placeholder="e.g. NIFTY"
-            />
-          </div>
           <div>
             <label className="block text-[11px] font-semibold text-slate-500">
               1. Entry *
@@ -107,14 +101,29 @@ export default function TradeItem({
               required
             />
           </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500">
+              3. Qty / Lots *
+            </label>
+            <input
+              type="number"
+              min="0.01"
+              step="any"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="h-9 w-full rounded-lg border border-indigo-200 bg-indigo-50/50 px-2.5 text-xs font-medium outline-none focus:border-indigo-400 focus:bg-white"
+              placeholder="e.g. 50"
+              required
+            />
+          </div>
         </div>
 
         <div>
           <label className="block text-[11px] font-semibold text-slate-500">
-            3. Outcome *
+            4. Outcome *
           </label>
-          <div className="mt-1 grid grid-cols-4 gap-1.5">
-            {(["TARGET_HIT", "SL_HIT", "BREAK_EVEN", "PENDING"] as TradeOutcome[]).map(
+          <div className="mt-1 grid grid-cols-3 gap-1.5">
+            {(["TARGET_HIT", "SL_HIT", "BREAK_EVEN"] as TradeOutcome[]).map(
               (option) => {
                 const optConfig = outcomeConfig[option];
                 const selected = outcome === option;
@@ -156,8 +165,9 @@ export default function TradeItem({
               setSymbol(trade.symbol ?? "");
               setEntry(trade.entry);
               setExit(trade.exit);
+              setQuantity(String(trade.quantity || 1));
               setOutcome(trade.outcome);
-              setNote(trade.note ?? "");
+              setNote(cleanTradeNote(trade.note) ?? "");
             }}
             className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-indigo-50 hover:text-indigo-900"
           >
@@ -192,32 +202,48 @@ export default function TradeItem({
             </span>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-700 sm:text-sm">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium text-slate-700 sm:text-sm">
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-400">1. Entry:</span>
+              <span className="font-semibold text-slate-400">Entry:</span>
               <span className="font-bold text-slate-900">{trade.entry}</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-400">2. Exit:</span>
+              <span className="font-semibold text-slate-400">Exit:</span>
               <span className="font-bold text-slate-900">{trade.exit}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-400">Qty:</span>
+              <span className="font-bold text-slate-900">{metrics.qty}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-400">Points:</span>
+              <span className={`font-bold ${metrics.points < 0 ? "text-rose-600" : metrics.points > 0 ? "text-emerald-600" : "text-slate-600"}`}>
+                {formatPoints(metrics.points)}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-400">PnL:</span>
+              <span className={`font-bold ${metrics.pnl < 0 ? "text-rose-600" : metrics.pnl > 0 ? "text-emerald-600" : "text-slate-600"}`}>
+                {formatCurrency(metrics.pnl)}
+              </span>
             </div>
           </div>
 
-          {trade.note && isExpanded ? (
+          {displayNote && isExpanded ? (
             <p className="mt-2.5 rounded-lg border border-indigo-100 bg-indigo-50/50 p-2 text-xs leading-5 text-slate-600">
-              {trade.note}
+              {displayNote}
             </p>
           ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-          {trade.note ? (
+          {displayNote ? (
             <button
               type="button"
               onClick={() => setIsExpanded((current) => !current)}
               className="rounded-lg px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800"
             >
-              {isExpanded ? "Hide" : "Note"}
+              {isExpanded ? "Hide Note" : "Note"}
             </button>
           ) : null}
           <button

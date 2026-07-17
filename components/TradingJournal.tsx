@@ -4,38 +4,83 @@ import TradeList from "@/components/TradeList";
 import { useTradingJournal } from "@/hooks/useTradingJournal";
 import { useTradingOverview } from "@/hooks/useTradingOverview";
 import { formatShortDate } from "@/lib/date";
-import { useMemo, useState } from "react";
+import { calculateTradeMetrics, formatCurrency, formatPoints } from "@/lib/tradingMetrics";
+import { useEffect, useMemo, useState } from "react";
 
 type TradingJournalProps = {
   selectedDate: string;
-  authKey?: string;
+  onTradesChange?: () => void;
 };
 
-export default function TradingJournal({
-  selectedDate,
-  authKey = "anon",
-}: TradingJournalProps) {
+export default function TradingJournal({ selectedDate, onTradesChange }: TradingJournalProps) {
   const [expanded, setExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<"daily" | "weekly" | "monthly">(
     "daily",
   );
+  const [showConfig, setShowConfig] = useState(false);
+  const [lossLimit, setLossLimit] = useState<number>(5000);
+  const [targetLimit, setTargetLimit] = useState<number>(10000);
+  const [killSwitchActive, setKillSwitchActive] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const storedLimits = localStorage.getItem("habit-tracker:trading_daily_limits");
+      if (storedLimits) {
+        const parsed = JSON.parse(storedLimits);
+        if (typeof parsed.loss === "number") setLossLimit(parsed.loss);
+        if (typeof parsed.target === "number") setTargetLimit(parsed.target);
+      }
+      const ks = localStorage.getItem(`habit-tracker:kill_switch_${selectedDate}`);
+      setKillSwitchActive(ks === "true");
+    } catch { }
+  }, [selectedDate]);
+
+  function handleSaveLimits(newLoss: number, newTarget: number) {
+    setLossLimit(newLoss);
+    setTargetLimit(newTarget);
+    try {
+      localStorage.setItem("habit-tracker:trading_daily_limits", JSON.stringify({ loss: newLoss, target: newTarget }));
+    } catch { }
+  }
+
+  function toggleKillSwitch(status: boolean) {
+    setKillSwitchActive(status);
+    try {
+      localStorage.setItem(`habit-tracker:kill_switch_${selectedDate}`, status ? "true" : "false");
+    } catch { }
+  }
 
   const {
     trades,
     loading,
     error,
     isLocalMode,
-    addTrade,
-    editTrade,
-    removeTrade,
+    addTrade: addTradeBase,
+    editTrade: editTradeBase,
+    removeTrade: removeTradeBase,
     refreshTrigger,
-  } = useTradingJournal(selectedDate, authKey);
+  } = useTradingJournal(selectedDate);
+
+  // Wrap mutations so parent overview also refreshes
+  async function addTrade(trade: Parameters<typeof addTradeBase>[0]) {
+    const result = await addTradeBase(trade);
+    if (result) onTradesChange?.();
+    return result;
+  }
+  async function editTrade(id: string, updates: Parameters<typeof editTradeBase>[1]) {
+    const result = await editTradeBase(id, updates);
+    if (result) onTradesChange?.();
+    return result;
+  }
+  function removeTrade(id: string) {
+    removeTradeBase(id);
+    onTradesChange?.();
+  }
 
   const { periods, loading: overviewLoading } = useTradingOverview(
     selectedDate,
     refreshTrigger,
     isLocalMode,
-    authKey,
   );
 
   const weeklyPeriod = useMemo(
@@ -52,98 +97,229 @@ export default function TradingJournal({
   const closedToday = targetHitToday + slHitToday;
   const todayWinRate = closedToday === 0 ? 0 : Math.round((targetHitToday / closedToday) * 100);
 
+  const todayPnL = useMemo(() => {
+    return trades.reduce((acc, t) => acc + calculateTradeMetrics(t).pnl, 0);
+  }, [trades]);
+
+  const isLossLimitReached = lossLimit > 0 && todayPnL <= -Math.abs(lossLimit);
+  const isTargetLimitReached = targetLimit > 0 && todayPnL >= Math.abs(targetLimit);
+  const isLimitReached = isLossLimitReached || isTargetLimitReached;
+
   return (
-    <section className="rounded-xl border border-indigo-200/80 bg-indigo-50/85 p-4 shadow-lg shadow-indigo-200/50 backdrop-blur sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className="rounded-2xl border border-[#e4e6ea] bg-white shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-slate-300">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-[#e4e6ea] px-5 py-4">
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:ring-offset-2 focus:ring-offset-indigo-50"
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left focus:outline-none"
           aria-expanded={expanded}
           aria-controls="trading-journal-panel"
         >
           <span>
-            <span className="block text-base font-semibold text-indigo-950">
+            <span className="block text-sm font-bold text-slate-900">
               Trading Journal
             </span>
-            <span className="mt-1 block text-sm text-indigo-700">
-              {trades.length} trades today | {todayWinRate}% win rate
+            <span className="mt-0.5 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-slate-400">{trades.length} trades today · {todayWinRate}% win rate</span>
+              <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${todayPnL < 0 ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>
+                {formatCurrency(todayPnL)}
+              </span>
             </span>
           </span>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 transition-all duration-300">
-            <span className={`inline-block transition-transform duration-300 ${expanded ? "rotate-180" : "rotate-0"}`}>
-              {expanded ? "−" : "+"}
-            </span>
+          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#e4e6ea] bg-[#f8f9fa] text-xs font-bold text-slate-500 transition-transform duration-200 ${expanded ? "rotate-180" : "rotate-0"}`}>
+            ↑
           </span>
         </button>
-        <div className="flex items-center gap-1.5">
+        <div className="ml-2 flex items-center gap-1.5">
           {isLocalMode ? (
             <span
-              title="Table not created yet on Supabase. Running in preview/localStorage mode."
-              className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800 border border-amber-300/60"
+              title="Running in localStorage preview mode."
+              className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700"
             >
-              Preview Mode (Run SQL)
+              Local
             </span>
           ) : null}
           {loading ? (
-            <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-              Syncing...
-            </span>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
           ) : null}
         </div>
       </div>
 
       <div
-        className={`grid transition-all duration-300 ease-in-out ${
-          expanded
+        className={`grid transition-all duration-300 ease-in-out ${expanded
             ? "grid-rows-[1fr] opacity-100"
             : "pointer-events-none grid-rows-[0fr] opacity-0"
-        }`}
+          }`}
       >
         <div className="overflow-hidden">
-          <div id="trading-journal-panel" className="pt-1">
+          <div id="trading-journal-panel" className="p-4 pt-3">
             {error ? (
-              <p className="mb-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+              <p className="mb-3 rounded-lg border border-red-100 bg-red-50 p-3 text-xs text-red-600">
                 {error}
               </p>
             ) : null}
 
-            {/* Sub-Tabs: Daily vs Weekly Overview vs Monthly Overview */}
-            <div className="mb-4 grid grid-cols-3 gap-1 rounded-xl bg-indigo-100/70 p-1">
+            {/* Kill Switch Signal Banner */}
+            {killSwitchActive ? (
+              <div className="mb-4 rounded-2xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100/80 p-3.5 sm:p-4 shadow-md">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-lg text-white shadow-md">
+                      🛡️
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <h4 className="text-sm font-extrabold text-emerald-950 tracking-tight sm:text-base">
+                          Kill Switch Activated
+                        </h4>
+                        <span className="rounded-full bg-emerald-200/80 px-2.5 py-0.5 text-xs font-bold text-emerald-950">
+                          Locked: {formatCurrency(todayPnL)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold leading-relaxed text-emerald-900/90">
+                        Confirmed activated in your broker app for today! Your capital and daily performance are safe. Step away and enjoy disciplined trading.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleKillSwitch(false)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white py-2 px-3 text-xs font-bold text-emerald-800 shadow-xs transition hover:bg-emerald-50"
+                  >
+                    <span>🔓 Deactivate Kill Switch if needed</span>
+                  </button>
+                </div>
+              </div>
+            ) : isLimitReached ? (
+              <div className="mb-4 rounded-2xl border-2 border-rose-500 bg-gradient-to-br from-rose-50 via-amber-50/50 to-rose-100/80 p-3.5 sm:p-4 shadow-lg animate-pulse">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-lg text-white shadow-md">
+                      🚨
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <h4 className="text-sm font-extrabold text-rose-950 tracking-tight sm:text-base">
+                          {isLossLimitReached ? "Daily Max Loss Reached!" : "Daily Target Achieved!"}
+                        </h4>
+                        <span className="rounded-full bg-rose-200/80 px-2.5 py-0.5 text-xs font-bold text-rose-950">
+                          Current: {formatCurrency(todayPnL)}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs font-semibold leading-relaxed text-rose-900/90">
+                        {isLossLimitReached ? (
+                          <>You have reached your daily loss threshold of <strong className="font-bold text-rose-950">-{formatCurrency(lossLimit)}</strong>. Stop trading right now to protect your capital and discipline!</>
+                        ) : (
+                          <>You hit your daily profit target of <strong className="font-bold text-rose-950">{formatCurrency(targetLimit)}</strong>. Excellent discipline! Lock in your profits and stop trading today.</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleKillSwitch(true)}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 py-2.5 px-3 text-xs font-extrabold uppercase tracking-wider text-white shadow-md shadow-rose-600/30 transition hover:from-rose-700 hover:to-red-700 active:scale-[0.99]"
+                  >
+                    <span>🔒 Activate Kill Switch & Confirm Done</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Sub-Tabs: Daily vs Weekly vs Monthly + Limits Config */}
+            <div className="mb-4 flex flex-col gap-2.5">
+              <div className="grid grid-cols-3 gap-1 rounded-xl bg-indigo-100/70 p-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("daily")}
+                  className={`rounded-lg py-1.5 text-xs font-bold transition ${activeTab === "daily"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-indigo-900 hover:bg-white/60"
+                    }`}
+                >
+                  Daily ({trades.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("weekly")}
+                  className={`rounded-lg py-1.5 text-xs font-bold transition ${activeTab === "weekly"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-indigo-900 hover:bg-white/60"
+                    }`}
+                >
+                  Weekly
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("monthly")}
+                  className={`rounded-lg py-1.5 text-xs font-bold transition ${activeTab === "monthly"
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-indigo-900 hover:bg-white/60"
+                    }`}
+                >
+                  Monthly
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => setActiveTab("daily")}
-                className={`rounded-lg py-1.5 text-xs font-bold transition ${
-                  activeTab === "daily"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-indigo-900 hover:bg-white/60"
-                }`}
+                onClick={() => setShowConfig((c) => !c)}
+                className="flex items-center justify-between rounded-xl border border-indigo-200 bg-white px-3 py-2 text-xs font-bold text-indigo-900 shadow-xs hover:bg-indigo-50/80 transition"
               >
-                Daily ({trades.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("weekly")}
-                className={`rounded-lg py-1.5 text-xs font-bold transition ${
-                  activeTab === "weekly"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-indigo-900 hover:bg-white/60"
-                }`}
-              >
-                Weekly Overview
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("monthly")}
-                className={`rounded-lg py-1.5 text-xs font-bold transition ${
-                  activeTab === "monthly"
-                    ? "bg-indigo-600 text-white shadow-sm"
-                    : "text-indigo-900 hover:bg-white/60"
-                }`}
-              >
-                Monthly Overview
+                <span className="flex items-center gap-1.5">
+                  <span>⚙️ Daily Risk & Profit Limits</span>
+                </span>
+                <span className="rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                  -₹{lossLimit} / +₹{targetLimit}
+                </span>
               </button>
             </div>
+
+            {/* Limits Config Box */}
+            {showConfig ? (
+              <div className="mb-4 rounded-xl border border-indigo-200 bg-white/95 p-3.5 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-indigo-950">
+                    Configure Daily Risk & Target Limits
+                  </h5>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfig(false)}
+                    className="text-xs font-bold text-slate-400 hover:text-slate-600"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Max Daily Loss Limit (₹ / Points)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={lossLimit}
+                      onChange={(e) => handleSaveLimits(Number(e.target.value) || 0, targetLimit)}
+                      className="mt-1 h-9 w-full rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 text-xs font-bold text-slate-900 outline-none focus:border-indigo-400 focus:bg-white"
+                      placeholder="e.g. 5000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Daily Profit Target Limit (₹ / Points)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={targetLimit}
+                      onChange={(e) => handleSaveLimits(lossLimit, Number(e.target.value) || 0)}
+                      className="mt-1 h-9 w-full rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 text-xs font-bold text-slate-900 outline-none focus:border-indigo-400 focus:bg-white"
+                      placeholder="e.g. 10000"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {activeTab === "daily" ? (
               <TradeList
@@ -214,7 +390,15 @@ function TimeframeStatsCard({
           </span>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
+          <div className="rounded-xl bg-indigo-50/90 p-2.5 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
+              Net PnL
+            </p>
+            <p className={`mt-1 text-base sm:text-lg font-bold ${(period as any).totalPnL < 0 ? "text-rose-600" : "text-emerald-600"}`}>
+              {formatCurrency((period as any).totalPnL || 0)}
+            </p>
+          </div>
           <div className="rounded-xl bg-indigo-50/80 p-2.5 text-center">
             <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
               Win Rate
@@ -247,7 +431,7 @@ function TimeframeStatsCard({
               {period.breakEvens ?? 0}
             </p>
           </div>
-          <div className="rounded-xl bg-slate-100/80 p-2.5 text-center sm:col-span-1 col-span-2">
+          <div className="rounded-xl bg-slate-100/80 p-2.5 text-center">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
               Total Trades
             </p>
@@ -288,48 +472,49 @@ function TimeframeStatsCard({
           </p>
         ) : (
           <ul className="max-h-80 space-y-2 overflow-y-auto pr-1">
-            {period.trades.map((trade) => (
-              <li
-                key={trade.id}
-                className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white/90 p-2.5 text-xs shadow-xs"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-500">
-                      {trade.date}
-                    </span>
-                    {trade.symbol ? (
-                      <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-bold text-indigo-900">
-                        {trade.symbol}
+            {period.trades.map((trade) => {
+              const m = calculateTradeMetrics(trade);
+              return (
+                <li
+                  key={trade.id}
+                  className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white/90 p-2.5 text-xs shadow-xs"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-500">
+                        {trade.date}
                       </span>
-                    ) : null}
+                      {trade.symbol ? (
+                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-bold text-indigo-900">
+                          {trade.symbol}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-slate-700">
+                      <span>Entry: <strong className="text-slate-900">{trade.entry}</strong></span>
+                      <span>Exit: <strong className="text-slate-900">{trade.exit}</strong></span>
+                      <span>Qty: <strong className="text-slate-900">{m.qty}</strong></span>
+                      <span>PnL: <strong className={m.pnl < 0 ? "text-rose-600" : "text-emerald-600"}>{formatCurrency(m.pnl)}</strong></span>
+                    </div>
                   </div>
-                  <div className="mt-1 flex gap-3 text-slate-700">
-                    <span>
-                      Entry: <strong className="text-slate-900">{trade.entry}</strong>
-                    </span>
-                    <span>
-                      Exit: <strong className="text-slate-900">{trade.exit}</strong>
-                    </span>
+                  <div className="shrink-0 ml-2">
+                    {trade.outcome === "TARGET_HIT" ? (
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-800">
+                        🎯 Target Hit
+                      </span>
+                    ) : trade.outcome === "SL_HIT" ? (
+                      <span className="rounded-full bg-rose-100 px-2.5 py-1 font-bold text-rose-800">
+                        🛑 SL Hit
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 font-bold text-amber-800">
+                        ⚖️ Break Even
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="shrink-0">
-                  {trade.outcome === "TARGET_HIT" ? (
-                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-800">
-                      🎯 Target Hit
-                    </span>
-                  ) : trade.outcome === "SL_HIT" ? (
-                    <span className="rounded-full bg-rose-100 px-2.5 py-1 font-bold text-rose-800">
-                      🛑 SL Hit
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 font-bold text-amber-800">
-                      ⚖️ Break Even
-                    </span>
-                  )}
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

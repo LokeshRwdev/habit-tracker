@@ -1,5 +1,6 @@
 import TradeItem from "@/components/TradeItem";
 import { NewTrade, Trade, TradeOutcome, TradeUpdates } from "@/lib/queries";
+import { calculateTradeMetrics, formatCurrency, formatPoints } from "@/lib/tradingMetrics";
 import { FormEvent, useState } from "react";
 
 type TradeListProps = {
@@ -20,6 +21,7 @@ export default function TradeList({
   const [symbol, setSymbol] = useState("");
   const [entry, setEntry] = useState("");
   const [exit, setExit] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const [outcome, setOutcome] = useState<TradeOutcome>("TARGET_HIT");
   const [note, setNote] = useState("");
   const [showOptional, setShowOptional] = useState(false);
@@ -31,6 +33,7 @@ export default function TradeList({
       symbol: symbol.trim() || null,
       entry: entry.trim(),
       exit: exit.trim(),
+      quantity: parseFloat(quantity) || 1,
       outcome,
       note: note.trim() || null,
     });
@@ -39,6 +42,7 @@ export default function TradeList({
       setSymbol("");
       setEntry("");
       setExit("");
+      setQuantity("1");
       setOutcome("TARGET_HIT");
       setNote("");
       setShowOptional(false);
@@ -78,28 +82,43 @@ export default function TradeList({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-              1. Entry Price / Level *
+              1. Entry Price / Pts *
             </label>
             <input
               value={entry}
               onChange={(e) => setEntry(e.target.value)}
               className="h-10 w-full rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 text-xs font-medium text-slate-950 outline-none transition placeholder:text-indigo-400 focus:border-indigo-400 focus:bg-white"
-              placeholder="e.g. 24,550.00"
+              placeholder="e.g. 24,550"
               required
             />
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-semibold text-slate-600">
-              2. Exit Price / Level *
+              2. Exit Price / Pts *
             </label>
             <input
               value={exit}
               onChange={(e) => setExit(e.target.value)}
               className="h-10 w-full rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 text-xs font-medium text-slate-950 outline-none transition placeholder:text-indigo-400 focus:border-indigo-400 focus:bg-white"
-              placeholder="e.g. 24,680.00"
+              placeholder="e.g. 24,680"
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold text-slate-600">
+              3. Qty / Lots *
+            </label>
+            <input
+              type="number"
+              min="0.01"
+              step="any"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="h-10 w-full rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 text-xs font-medium text-slate-950 outline-none transition placeholder:text-indigo-400 focus:border-indigo-400 focus:bg-white"
+              placeholder="e.g. 50"
               required
             />
           </div>
@@ -107,7 +126,7 @@ export default function TradeList({
 
         <div className="mt-2.5">
           <label className="mb-1.5 block text-[11px] font-semibold text-slate-600">
-            3. Outcome *
+            4. Outcome *
           </label>
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -144,6 +163,15 @@ export default function TradeList({
               className="min-h-16 w-full resize-none rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-xs outline-none transition placeholder:text-indigo-400 focus:border-indigo-400 focus:bg-white"
               placeholder="Why did you enter/exit this trade? Setup checklist..."
             />
+          </div>
+        ) : null}
+
+        {entry && exit ? (
+          <div className="mt-2.5 flex items-center justify-between rounded-lg bg-indigo-50/90 px-3 py-2 text-xs font-semibold text-indigo-950 border border-indigo-200/80">
+            <span>Live Trade Preview:</span>
+            <span>
+              Pts: <strong className={outcome === "SL_HIT" ? "text-rose-600" : "text-emerald-600"}>{formatPoints(calculateTradeMetrics({ entry, exit, outcome, quantity: parseFloat(quantity) || 1 }).points)}</strong> | PnL: <strong className={outcome === "SL_HIT" ? "text-rose-600" : "text-emerald-600"}>{formatCurrency(calculateTradeMetrics({ entry, exit, outcome, quantity: parseFloat(quantity) || 1 }).pnl)}</strong>
+            </span>
           </div>
         ) : null}
 

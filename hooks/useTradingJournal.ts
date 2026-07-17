@@ -21,6 +21,7 @@ function getSampleTrades(baseDate: string): Trade[] {
       symbol: "NIFTY 50",
       entry: "24,550",
       exit: "24,680",
+      quantity: 50,
       outcome: "TARGET_HIT",
       note: "Bullish breakout on 15m chart after morning consolidation",
       date: baseDate,
@@ -31,6 +32,7 @@ function getSampleTrades(baseDate: string): Trade[] {
       symbol: "BANKNIFTY",
       entry: "52,100",
       exit: "51,950",
+      quantity: 15,
       outcome: "SL_HIT",
       note: "Unexpected news spike at resistance zone",
       date: shiftDateKey(baseDate, -1),
@@ -69,7 +71,7 @@ function getSampleTrades(baseDate: string): Trade[] {
   ];
 }
 
-export function useTradingJournal(selectedDate: string, authKey: string = "anon") {
+export function useTradingJournal(selectedDate: string) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,9 +79,6 @@ export function useTradingJournal(selectedDate: string, authKey: string = "anon"
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const refresh = useCallback(async () => {
-    if (authKey === "checking") {
-      return;
-    }
     setLoading(true);
     setError("");
 
@@ -105,7 +104,7 @@ export function useTradingJournal(selectedDate: string, authKey: string = "anon"
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, authKey]);
+  }, [selectedDate]);
 
   function loadFromLocalStorage(date: string) {
     try {
@@ -138,6 +137,7 @@ export function useTradingJournal(selectedDate: string, authKey: string = "anon"
         symbol: trade.symbol?.trim() || null,
         entry: trade.entry.trim(),
         exit: trade.exit.trim(),
+        quantity: trade.quantity ?? 1,
         outcome: trade.outcome,
         note: trade.note?.trim() || null,
         date: selectedDate,
@@ -165,6 +165,7 @@ export function useTradingJournal(selectedDate: string, authKey: string = "anon"
           symbol: trade.symbol?.trim() || null,
           entry: trade.entry.trim(),
           exit: trade.exit.trim(),
+          quantity: trade.quantity ?? 1,
           outcome: trade.outcome,
           note: trade.note?.trim() || null,
           date: selectedDate,
@@ -212,6 +213,9 @@ export function useTradingJournal(selectedDate: string, authKey: string = "anon"
       }
       if (nextUpdates.note !== undefined) {
         nextUpdates.note = nextUpdates.note?.trim() || null;
+      }
+      if (nextUpdates.quantity !== undefined && (isNaN(nextUpdates.quantity!) || nextUpdates.quantity! <= 0)) {
+        nextUpdates.quantity = 1;
       }
 
       setTrades((current) =>

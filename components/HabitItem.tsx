@@ -22,14 +22,11 @@ export default function HabitItem({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const renamed = await onRename(name);
-
     if (!renamed) {
-      setError("Name is already used.");
+      setError("Name already exists.");
       return;
     }
-
     setError("");
     setIsEditing(false);
   }
@@ -38,86 +35,73 @@ export default function HabitItem({
     return (
       <form
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-amber-200 bg-white/90 p-3 shadow-sm shadow-amber-200/50"
+        className="rounded-xl border border-[#e4e6ea] bg-white p-2.5 shadow-xs"
       >
         <div className="flex gap-2">
           <input
             value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-              setError("");
-            }}
-            className="min-w-0 flex-1 rounded-xl border border-amber-200 bg-amber-50 px-3 text-sm font-medium outline-none focus:border-orange-400 focus:bg-white"
+            onChange={(e) => { setName(e.target.value); setError(""); }}
+            className="min-w-0 flex-1 rounded-lg border border-[#e4e6ea] bg-[#f8f9fa] px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-indigo-400 focus:bg-white"
             aria-label="Habit name"
             autoFocus
             required
           />
           <button
             type="submit"
-            className="rounded-xl bg-emerald-500 px-3 text-sm font-semibold text-white hover:bg-emerald-600"
+            className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-600"
           >
             Save
           </button>
           <button
             type="button"
-            onClick={() => {
-              setIsEditing(false);
-              setName(habit.name);
-              setError("");
-            }}
-            className="rounded-xl px-3 text-sm font-medium text-slate-500 hover:bg-amber-100 hover:text-amber-950"
+            onClick={() => { setIsEditing(false); setName(habit.name); setError(""); }}
+            className="rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-[#f8f9fa]"
           >
             Cancel
           </button>
         </div>
-        {error ? <p className="mt-2 px-1 text-xs text-red-500">{error}</p> : null}
+        {error ? <p className="mt-1.5 px-1 text-xs text-red-500">{error}</p> : null}
       </form>
     );
   }
 
   return (
-    <li className="group flex items-center gap-3 rounded-2xl border border-amber-200 bg-white/90 p-3 shadow-sm shadow-amber-200/50 transition hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md">
+    <li className="group flex items-center gap-3 rounded-xl border border-[#e4e6ea] bg-white px-3 py-2.5 shadow-xs transition-all duration-150 hover:border-slate-300 hover:shadow-sm hover:-translate-y-px">
       <button
         type="button"
         onClick={onToggle}
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-orange-300 ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-300 ${
           completed
             ? "border-emerald-500 bg-emerald-500 text-white"
-            : "border-amber-300 bg-amber-50 text-transparent hover:border-orange-400"
+            : "border-[#d0d3da] bg-white text-transparent hover:border-indigo-400"
         }`}
         aria-pressed={completed}
         aria-label={`Mark ${habit.name} as ${completed ? "not done" : "done"}`}
       >
-        <span className="text-sm font-bold">✓</span>
+        <span className="text-xs font-bold">✓</span>
       </button>
 
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <p
-            className={`truncate text-sm font-semibold ${
-              completed ? "text-emerald-600 line-through" : "text-slate-950"
-            }`}
-          >
-            {habit.name}
-          </p>
-        </div>
-        <p className="mt-0.5 text-xs text-amber-700">
-          {completed ? "Completed for this date" : "Open for this date"}
+        <p className={`truncate text-sm font-semibold ${completed ? "text-slate-400 line-through" : "text-slate-900"}`}>
+          {habit.name}
+        </p>
+        <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+          {completed ? "Completed" : "Pending"}
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:transition sm:group-hover:opacity-100">
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
         <button
           type="button"
           onClick={() => setIsEditing(true)}
-          className="rounded-lg px-2 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50 hover:text-sky-800"
+          className="rounded-md px-2 py-1 text-xs font-medium text-slate-400 hover:bg-[#f8f9fa] hover:text-slate-700"
         >
           Edit
         </button>
         <button
           type="button"
           onClick={onDelete}
-          className="rounded-lg px-2 py-1 text-xs font-medium text-rose-500 hover:bg-rose-50"
+          className="rounded-md px-2 py-1 text-xs font-medium text-slate-400 hover:bg-rose-50 hover:text-rose-600"
         >
           Delete
         </button>

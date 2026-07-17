@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type CompletedByHabit = Record<string, boolean>;
 
-export function useHabits(selectedDate: string, authKey: string = "anon") {
+export function useHabits(selectedDate: string, sessionUserId?: string) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completedByHabit, setCompletedByHabit] = useState<CompletedByHabit>(
     {},
@@ -22,9 +22,6 @@ export function useHabits(selectedDate: string, authKey: string = "anon") {
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    if (authKey === "checking") {
-      return;
-    }
     setLoading(true);
     setError("");
 
@@ -43,7 +40,7 @@ export function useHabits(selectedDate: string, authKey: string = "anon") {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, authKey]);
+  }, [selectedDate]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -51,7 +48,9 @@ export function useHabits(selectedDate: string, authKey: string = "anon") {
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [refresh]);
+  // Re-fetch when session changes (sessionUserId changes on login/logout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh, sessionUserId]);
 
   const completedCount = useMemo(
     () => habits.filter((habit) => completedByHabit[habit.id]).length,

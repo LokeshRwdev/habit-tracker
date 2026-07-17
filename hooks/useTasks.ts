@@ -11,15 +11,12 @@ import {
 } from "@/lib/queries";
 import { useCallback, useEffect, useState } from "react";
 
-export function useTasks(selectedDate: string, authKey: string = "anon") {
+export function useTasks(selectedDate: string, sessionUserId?: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
-    if (authKey === "checking") {
-      return;
-    }
     setLoading(true);
     setError("");
 
@@ -30,7 +27,7 @@ export function useTasks(selectedDate: string, authKey: string = "anon") {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, authKey]);
+  }, [selectedDate]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -38,7 +35,9 @@ export function useTasks(selectedDate: string, authKey: string = "anon") {
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [refresh]);
+  // Re-fetch when session changes (sessionUserId changes on login/logout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refresh, sessionUserId]);
 
   const addTask = useCallback(
     async (task: Omit<NewTask, "date">) => {

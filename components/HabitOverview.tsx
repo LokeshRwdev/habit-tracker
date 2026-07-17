@@ -24,7 +24,7 @@ export default function HabitOverview({
     periods.find((period) => period.period === selectedPeriod) ?? periods[0];
 
   return (
-    <section className="rounded-2xl border border-emerald-200/80 bg-white/80 p-4 shadow-xl shadow-emerald-100/60 backdrop-blur sm:p-5">
+    <section className="rounded-2xl border border-[#e4e6ea] bg-white p-4 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-slate-300 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <button
           type="button"

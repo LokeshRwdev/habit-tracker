@@ -6,9 +6,10 @@ import {
   startOfYearKey,
 } from "@/lib/date";
 import { getTradesInRange, Trade } from "@/lib/queries";
+import { calculateTradeMetrics } from "@/lib/tradingMetrics";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type TradingOverviewPeriod = "week" | "month" | "year";
+export type TradingOverviewPeriod = "day" | "week" | "month" | "year";
 
 export type TradingPeriodStats = {
   period: TradingOverviewPeriod;
@@ -20,10 +21,13 @@ export type TradingPeriodStats = {
   slHits: number;
   breakEvens: number;
   winRate: number;
+  totalPoints: number;
+  totalPnL: number;
   trades: Trade[];
 };
 
 const PERIOD_LABELS: Record<TradingOverviewPeriod, string> = {
+  day: "Today",
   week: "This week",
   month: "This month",
   year: "This year",
@@ -35,7 +39,6 @@ export function useTradingOverview(
   selectedDate: string,
   refreshKey: unknown = 0,
   isLocalMode: boolean = false,
-  authKey: string = "anon",
 ) {
   const [periods, setPeriods] = useState<TradingPeriodStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +46,12 @@ export function useTradingOverview(
 
   const ranges = useMemo(
     () => [
+      {
+        period: "day" as const,
+        label: PERIOD_LABELS.day,
+        startDate: selectedDate,
+        endDate: selectedDate,
+      },
       {
         period: "week" as const,
         label: PERIOD_LABELS.week,
@@ -66,9 +75,6 @@ export function useTradingOverview(
   );
 
   const refresh = useCallback(async () => {
-    if (authKey === "checking") {
-      return;
-    }
     setLoading(true);
     setError("");
 
@@ -107,7 +113,15 @@ export function useTradingOverview(
 
           const closedTrades = targetHits + slHits;
           const winRate =
-            closedTrades === 0 ? 0 : Math.round((targetHits / closedTrades) * 100);
+            closedTrades === 0 ? 0 : (targetHits / closedTrades) * 100;
+
+          let totalPoints = 0;
+          let totalPnL = 0;
+          for (const t of rangeTrades) {
+            const m = calculateTradeMetrics(t);
+            totalPoints += m.points;
+            totalPnL += m.pnl;
+          }
 
           return {
             ...range,
@@ -116,6 +130,8 @@ export function useTradingOverview(
             slHits,
             breakEvens,
             winRate,
+            totalPoints: Math.round(totalPoints * 100) / 100,
+            totalPnL: Math.round(totalPnL * 100) / 100,
             trades: rangeTrades,
           };
         }),
@@ -129,7 +145,7 @@ export function useTradingOverview(
     } finally {
       setLoading(false);
     }
-  }, [ranges, selectedDate, isLocalMode, authKey]);
+  }, [ranges, selectedDate, isLocalMode]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {

@@ -5,33 +5,30 @@ type DateNavigatorProps = {
   onSelectDate: (dateKey: string) => void;
 };
 
-export default function DateNavigator({
-  selectedDate,
-  onSelectDate,
-}: DateNavigatorProps) {
+export default function DateNavigator({ selectedDate, onSelectDate }: DateNavigatorProps) {
   const today = toDateKey(new Date());
   const isToday = selectedDate === today;
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/85 p-2 shadow-lg shadow-sky-200/40 backdrop-blur">
+    <div className="flex items-center gap-2 rounded-xl border border-[#e4e6ea] bg-white px-2 py-2 shadow-xs">
       <button
         type="button"
         onClick={() => onSelectDate(shiftDateKey(selectedDate, -1))}
-        className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-lg font-semibold text-orange-700 transition hover:bg-orange-200 focus:outline-none focus:ring-2 focus:ring-orange-300"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e4e6ea] bg-[#f8f9fa] text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 focus:outline-none"
         aria-label="Previous day"
       >
-        &lt;
+        ‹
       </button>
 
       <button
         type="button"
         onClick={() => onSelectDate(today)}
-        className="min-w-0 flex-1 rounded-xl px-3 py-2 text-center transition hover:bg-sky-50 focus:outline-none focus:ring-2 focus:ring-sky-300"
+        className="min-w-0 flex-1 rounded-lg px-3 py-1.5 text-center transition hover:bg-[#f8f9fa] focus:outline-none"
       >
-        <span className="block text-xs font-semibold uppercase tracking-wide text-sky-600">
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-indigo-500">
           {isToday ? "Today" : "Viewing"}
         </span>
-        <span className="block truncate text-sm font-semibold text-slate-950">
+        <span className="block truncate text-sm font-semibold text-slate-900">
           {formatShortDate(selectedDate)}
         </span>
       </button>
@@ -39,10 +36,10 @@ export default function DateNavigator({
       <button
         type="button"
         onClick={() => onSelectDate(shiftDateKey(selectedDate, 1))}
-        className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-lg font-semibold text-indigo-700 transition hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#e4e6ea] bg-[#f8f9fa] text-sm font-semibold text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 focus:outline-none"
         aria-label="Next day"
       >
-        &gt;
+        ›
       </button>
     </div>
   );

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { encodeTradeNoteWithQty, parseTradeQuantity, TradeOutcome } from "@/lib/tradingMetrics";
 
 export type Habit = {
   id: string;
@@ -189,13 +190,14 @@ export async function deleteTask(id: string) {
   }
 }
 
-export type TradeOutcome = "TARGET_HIT" | "SL_HIT" | "BREAK_EVEN";
+export type { TradeOutcome };
 
 export type Trade = {
   id: string;
   symbol?: string | null;
   entry: string;
   exit: string;
+  quantity?: number | null;
   outcome: TradeOutcome;
   note?: string | null;
   date: string;
@@ -206,19 +208,20 @@ export type NewTrade = {
   symbol?: string | null;
   entry: string;
   exit: string;
+  quantity?: number | null;
   outcome: TradeOutcome;
   note?: string | null;
   date: string;
 };
 
 export type TradeUpdates = Partial<
-  Pick<Trade, "symbol" | "entry" | "exit" | "outcome" | "note">
+  Pick<Trade, "symbol" | "entry" | "exit" | "quantity" | "outcome" | "note">
 >;
 
 export async function getTrades(date: string) {
   const { data, error } = await supabase
     .from("trading_journal")
-    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .select("*")
     .eq("date", date)
     .order("created_at", { ascending: true });
 
@@ -226,13 +229,16 @@ export async function getTrades(date: string) {
     throw error;
   }
 
-  return data satisfies Trade[];
+  return (data || []).map((row: any) => ({
+    ...row,
+    quantity: parseTradeQuantity(row),
+  })) satisfies Trade[];
 }
 
 export async function getTradesInRange(startDate: string, endDate: string) {
   const { data, error } = await supabase
     .from("trading_journal")
-    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .select("*")
     .gte("date", startDate)
     .lte("date", endDate)
     .order("date", { ascending: false })
@@ -242,43 +248,86 @@ export async function getTradesInRange(startDate: string, endDate: string) {
     throw error;
   }
 
-  return data satisfies Trade[];
+  return (data || []).map((row: any) => ({
+    ...row,
+    quantity: parseTradeQuantity(row),
+  })) satisfies Trade[];
 }
 
 export async function createTrade(trade: NewTrade) {
+  const noteWithQty = encodeTradeNoteWithQty(trade.note, trade.quantity ?? 1);
+  const basePayload = {
+    symbol: trade.symbol ?? null,
+    entry: trade.entry,
+    exit: trade.exit,
+    outcome: trade.outcome,
+    note: noteWithQty,
+    date: trade.date,
+  };
+
+  // Try inserting with quantity column first
+  if (typeof trade.quantity === "number") {
+    const { data, error } = await supabase
+      .from("trading_journal")
+      .insert({ ...basePayload, quantity: trade.quantity })
+      .select("*")
+      .single();
+
+    if (!error && data) {
+      return { ...data, quantity: parseTradeQuantity(data) } satisfies Trade;
+    }
+  }
+
+  // Fallback: insert without quantity column
   const { data, error } = await supabase
     .from("trading_journal")
-    .insert({
-      symbol: trade.symbol ?? null,
-      entry: trade.entry,
-      exit: trade.exit,
-      outcome: trade.outcome,
-      note: trade.note ?? null,
-      date: trade.date,
-    })
-    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .insert(basePayload)
+    .select("*")
     .single();
 
   if (error) {
     throw error;
   }
 
-  return data satisfies Trade;
+  return { ...data, quantity: parseTradeQuantity(data) } satisfies Trade;
 }
 
 export async function updateTrade(id: string, updates: TradeUpdates) {
+  const noteWithQty = updates.quantity !== undefined || updates.note !== undefined
+    ? encodeTradeNoteWithQty(updates.note, updates.quantity ?? 1)
+    : undefined;
+
+  const baseUpdates: any = { ...updates };
+  delete baseUpdates.quantity;
+  if (noteWithQty !== undefined) {
+    baseUpdates.note = noteWithQty;
+  }
+
+  if (typeof updates.quantity === "number") {
+    const { data, error } = await supabase
+      .from("trading_journal")
+      .update({ ...baseUpdates, quantity: updates.quantity })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (!error && data) {
+      return { ...data, quantity: parseTradeQuantity(data) } satisfies Trade;
+    }
+  }
+
   const { data, error } = await supabase
     .from("trading_journal")
-    .update(updates)
+    .update(baseUpdates)
     .eq("id", id)
-    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .select("*")
     .single();
 
   if (error) {
     throw error;
   }
 
-  return data satisfies Trade;
+  return { ...data, quantity: parseTradeQuantity(data) } satisfies Trade;
 }
 
 export async function deleteTrade(id: string) {
