@@ -8,9 +8,13 @@ import { useMemo, useState } from "react";
 
 type TradingJournalProps = {
   selectedDate: string;
+  authKey?: string;
 };
 
-export default function TradingJournal({ selectedDate }: TradingJournalProps) {
+export default function TradingJournal({
+  selectedDate,
+  authKey = "anon",
+}: TradingJournalProps) {
   const [expanded, setExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<"daily" | "weekly" | "monthly">(
     "daily",
@@ -25,12 +29,13 @@ export default function TradingJournal({ selectedDate }: TradingJournalProps) {
     editTrade,
     removeTrade,
     refreshTrigger,
-  } = useTradingJournal(selectedDate);
+  } = useTradingJournal(selectedDate, authKey);
 
   const { periods, loading: overviewLoading } = useTradingOverview(
     selectedDate,
     refreshTrigger,
     isLocalMode,
+    authKey,
   );
 
   const weeklyPeriod = useMemo(

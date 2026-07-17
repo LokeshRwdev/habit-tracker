@@ -11,12 +11,15 @@ import {
 } from "@/lib/queries";
 import { useCallback, useEffect, useState } from "react";
 
-export function useTasks(selectedDate: string) {
+export function useTasks(selectedDate: string, authKey: string = "anon") {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
+    if (authKey === "checking") {
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -27,7 +30,7 @@ export function useTasks(selectedDate: string) {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, authKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {

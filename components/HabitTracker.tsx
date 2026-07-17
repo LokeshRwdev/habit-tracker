@@ -40,6 +40,10 @@ export default function HabitTracker() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const authKey = authChecking
+    ? "checking"
+    : session?.user?.id || (isOfflineMode ? "offline" : "anon");
+
   const {
     habits,
     completedByHabit,
@@ -50,7 +54,7 @@ export default function HabitTracker() {
     renameHabit,
     removeHabit,
     toggleHabit,
-  } = useHabits(selectedDate);
+  } = useHabits(selectedDate, authKey);
   const {
     tasks,
     loading: tasksLoading,
@@ -58,17 +62,17 @@ export default function HabitTracker() {
     addTask,
     editTask,
     removeTask,
-  } = useTasks(selectedDate);
+  } = useTasks(selectedDate, authKey);
   const {
     periods: overviewPeriods,
     loading: overviewLoading,
     error: overviewError,
-  } = useHabitOverview(selectedDate, habits, completedByHabit);
+  } = useHabitOverview(selectedDate, habits, completedByHabit, authKey);
   const {
     periods: tradingPeriods,
     loading: tradingLoading,
     error: tradingError,
-  } = useTradingOverview(selectedDate);
+  } = useTradingOverview(selectedDate, 0, false, authKey);
 
   const progress =
     habits.length === 0 ? 0 : (completedCount / habits.length) * 100;
@@ -311,7 +315,7 @@ export default function HabitTracker() {
             </div>
           </section>
 
-          <TradingJournal selectedDate={selectedDate} />
+          <TradingJournal selectedDate={selectedDate} authKey={authKey} />
         </div>
       </section>
     </main>

@@ -69,7 +69,7 @@ function getSampleTrades(baseDate: string): Trade[] {
   ];
 }
 
-export function useTradingJournal(selectedDate: string) {
+export function useTradingJournal(selectedDate: string, authKey: string = "anon") {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,6 +77,9 @@ export function useTradingJournal(selectedDate: string) {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const refresh = useCallback(async () => {
+    if (authKey === "checking") {
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -102,7 +105,7 @@ export function useTradingJournal(selectedDate: string) {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, authKey]);
 
   function loadFromLocalStorage(date: string) {
     try {

@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type CompletedByHabit = Record<string, boolean>;
 
-export function useHabits(selectedDate: string) {
+export function useHabits(selectedDate: string, authKey: string = "anon") {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completedByHabit, setCompletedByHabit] = useState<CompletedByHabit>(
     {},
@@ -22,6 +22,9 @@ export function useHabits(selectedDate: string) {
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
+    if (authKey === "checking") {
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -40,7 +43,7 @@ export function useHabits(selectedDate: string) {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, authKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {

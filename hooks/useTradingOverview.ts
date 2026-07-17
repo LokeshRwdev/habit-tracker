@@ -35,6 +35,7 @@ export function useTradingOverview(
   selectedDate: string,
   refreshKey: unknown = 0,
   isLocalMode: boolean = false,
+  authKey: string = "anon",
 ) {
   const [periods, setPeriods] = useState<TradingPeriodStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +66,9 @@ export function useTradingOverview(
   );
 
   const refresh = useCallback(async () => {
+    if (authKey === "checking") {
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -103,7 +107,7 @@ export function useTradingOverview(
 
           const closedTrades = targetHits + slHits;
           const winRate =
-            closedTrades === 0 ? 0 : (targetHits / closedTrades) * 100;
+            closedTrades === 0 ? 0 : Math.round((targetHits / closedTrades) * 100);
 
           return {
             ...range,
@@ -125,7 +129,7 @@ export function useTradingOverview(
     } finally {
       setLoading(false);
     }
-  }, [ranges, selectedDate, isLocalMode]);
+  }, [ranges, selectedDate, isLocalMode, authKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {

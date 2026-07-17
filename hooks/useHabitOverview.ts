@@ -44,6 +44,7 @@ export function useHabitOverview(
   selectedDate: string,
   habits: Habit[],
   refreshKey: unknown,
+  authKey: string = "anon",
 ) {
   const [periods, setPeriods] = useState<HabitOverviewPeriod[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +75,9 @@ export function useHabitOverview(
   );
 
   const refresh = useCallback(async () => {
+    if (authKey === "checking") {
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -106,27 +110,43 @@ export function useHabitOverview(
             };
           });
 
-          const activeRows = rows.filter((row) => row.totalDays > 0);
-          const totalCompletedDays = rows.reduce(
-            (total, row) => total + row.completedDays,
-            0,
-          );
+          let strongest: HabitOverviewRow | null = null;
+          let weakest: HabitOverviewRow | null = null;
+
+          rows.forEach((row) => {
+            if (row.totalDays === 0) {
+              return;
+            }
+            if (!strongest || row.rate > strongest.rate) {
+              strongest = row;
+            }
+            if (!weakest || row.rate < weakest.rate) {
+              weakest = row;
+            }
+          });
+
           const totalAvailableDays = rows.reduce(
-            (total, row) => total + row.totalDays,
+            (sum, row) => sum + row.totalDays,
             0,
           );
-          const averageRate =
-            totalAvailableDays === 0
-              ? 0
-              : totalCompletedDays / totalAvailableDays;
+          const totalCompletedDays = rows.reduce(
+            (sum, row) => sum + row.completedDays,
+            0,
+          );
 
           return {
-            ...range,
+            period: range.period,
+            label: range.label,
+            startDate: range.startDate,
+            endDate: range.endDate,
             totalCompletedDays,
             totalAvailableDays,
-            averageRate,
-            strongest: getStrongestHabit(activeRows),
-            weakest: getWeakestHabit(activeRows),
+            averageRate:
+              totalAvailableDays === 0
+                ? 0
+                : totalCompletedDays / totalAvailableDays,
+            strongest,
+            weakest,
             rows,
           };
         }),
@@ -136,7 +156,7 @@ export function useHabitOverview(
     } finally {
       setLoading(false);
     }
-  }, [habits, ranges, selectedDate]);
+  }, [habits, ranges, selectedDate, authKey]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
