@@ -44,124 +44,152 @@ export default function HabitOverview({
               Completed days by habit for the selected period.
             </span>
           </span>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
-            {isExpanded ? "-" : "+"}
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700 transition-all duration-300">
+            <span className={`inline-block transition-transform duration-300 ${isExpanded ? "rotate-180" : "rotate-0"}`}>
+              {isExpanded ? "−" : "+"}
+            </span>
           </span>
         </button>
 
-        {isExpanded ? (
-          <div className="grid grid-cols-3 gap-1 rounded-full bg-emerald-50 p-1">
-            {PERIODS.map((period) => (
-              <button
-                key={period}
-                type="button"
-                onClick={() => setSelectedPeriod(period)}
-                className={`rounded-full px-3 py-2 text-xs font-bold capitalize transition ${
-                  selectedPeriod === period
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "text-emerald-800 hover:bg-white"
-                }`}
-              >
-                {period}
-              </button>
-            ))}
+        <div
+          className={`grid transition-all duration-300 ease-in-out ${
+            isExpanded
+              ? "grid-rows-[1fr] opacity-100"
+              : "pointer-events-none grid-rows-[0fr] opacity-0"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div className="grid grid-cols-3 gap-1 rounded-full bg-emerald-50 p-1">
+              {PERIODS.map((period) => (
+                <button
+                  key={period}
+                  type="button"
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`rounded-full px-3 py-2 text-xs font-bold capitalize transition ${
+                    selectedPeriod === period
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "text-emerald-800 hover:bg-white"
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : null}
+        </div>
       </div>
 
-      {isExpanded ? (
-        <div id="habit-overview-panel">
-          {error ? (
-            <p className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </p>
-          ) : null}
+      <div
+        className={`grid transition-all duration-500 ease-in-out ${
+          isExpanded
+            ? "mt-4 grid-rows-[1fr] opacity-100"
+            : "mt-0 grid-rows-[0fr] opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div id="habit-overview-panel">
+            {error ? (
+              <p className="mt-4 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </p>
+            ) : null}
 
-          {loading ? (
-            <p className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
-              Loading overview...
-            </p>
-          ) : !activePeriod ? (
-            <p className="mt-4 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/70 p-5 text-center text-sm font-medium text-emerald-700">
-              Add habits to see weekly, monthly, and yearly progress.
-            </p>
-          ) : (
-            <div className="mt-5 space-y-5">
-              <div className="grid gap-3 md:grid-cols-3">
-                <MetricCard
-                  label={activePeriod.label}
-                  value={`${activePeriod.totalCompletedDays}/${activePeriod.totalAvailableDays}`}
-                  detail={`${formatPercent(activePeriod.averageRate)} complete`}
-                />
-                <MetricCard
-                  label="Strongest"
-                  value={activePeriod.strongest?.habitName ?? "No data"}
-                  detail={
-                    activePeriod.strongest
-                      ? `${activePeriod.strongest.completedDays}/${activePeriod.strongest.totalDays} days`
-                      : "Complete a habit to rank it"
-                  }
-                />
-                <MetricCard
-                  label="Weakest"
-                  value={activePeriod.weakest?.habitName ?? "No data"}
-                  detail={
-                    activePeriod.weakest
-                      ? `${activePeriod.weakest.completedDays}/${activePeriod.weakest.totalDays} days`
-                      : "No active habits yet"
-                  }
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Each habit
-                  </h3>
-                  <p className="text-xs font-semibold text-slate-500">
-                    {formatShortDate(activePeriod.startDate)} -{" "}
-                    {formatShortDate(activePeriod.endDate)}
-                  </p>
+            {loading ? (
+              <p className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
+                Loading overview...
+              </p>
+            ) : !activePeriod ? (
+              <p className="mt-4 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/70 p-5 text-center text-sm font-medium text-emerald-700">
+                Add habits to see weekly, monthly, and yearly progress.
+              </p>
+            ) : (
+              <div className="mt-5 space-y-5">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <MetricCard
+                    label={activePeriod.label}
+                    value={`${activePeriod.totalCompletedDays}/${activePeriod.totalAvailableDays}`}
+                    detail={`${formatPercent(activePeriod.averageRate)} complete`}
+                  />
+                  <MetricCard
+                    label="Strongest"
+                    value={activePeriod.strongest?.habitName ?? "No data"}
+                    detail={
+                      activePeriod.strongest
+                        ? `${activePeriod.strongest.completedDays}/${activePeriod.strongest.totalDays} days`
+                        : "Complete a habit to rank it"
+                    }
+                  />
+                  <MetricCard
+                    label="Weakest"
+                    value={activePeriod.weakest?.habitName ?? "No data"}
+                    detail={
+                      activePeriod.weakest
+                        ? `${activePeriod.weakest.completedDays}/${activePeriod.weakest.totalDays} days`
+                        : "No active habits yet"
+                    }
+                  />
                 </div>
 
-                <div className="mt-3 space-y-3">
-                  {activePeriod.rows.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/70 p-5 text-center text-sm font-medium text-emerald-700">
-                      No habits available for this period.
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Each habit
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-500">
+                      {formatShortDate(activePeriod.startDate)} -{" "}
+                      {formatShortDate(activePeriod.endDate)}
                     </p>
-                  ) : (
-                    activePeriod.rows.map((row) => (
-                      <div
-                        key={row.habitId}
-                        className="rounded-xl border border-emerald-100 bg-white/90 p-3"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="min-w-0 truncate text-sm font-semibold text-slate-950">
-                            {row.habitName}
-                          </p>
-                          <p className="shrink-0 text-xs font-bold text-emerald-700">
-                            {row.completedDays}/{row.totalDays} days
-                          </p>
+                  </div>
+
+                  <div className="mt-3 space-y-3">
+                    {activePeriod.rows.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/70 p-5 text-center text-sm font-medium text-emerald-700">
+                        No habits available for this period.
+                      </p>
+                    ) : (
+                      activePeriod.rows.map((row) => (
+                        <div
+                          key={row.habitId}
+                          className="rounded-xl border border-emerald-100 bg-white/90 p-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="min-w-0 truncate text-sm font-semibold text-slate-950">
+                              {row.habitName}
+                            </p>
+                            <p className="shrink-0 text-xs font-bold text-emerald-700">
+                              {row.completedDays}/{row.totalDays} days
+                            </p>
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-emerald-50">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-300"
+                              style={{ width: `${Math.round(row.rate * 100)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-emerald-50">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-300"
-                            style={{ width: `${Math.round(row.rate * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      ) : (
-        <p className="mt-3 text-sm font-medium text-emerald-700">
-          Expand to see weekly, monthly, and yearly habit trends.
-        </p>
-      )}
+      </div>
+
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          !isExpanded
+            ? "mt-3 grid-rows-[1fr] opacity-100"
+            : "pointer-events-none mt-0 grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <p className="text-sm font-medium text-emerald-700">
+            Expand to see weekly, monthly, and yearly habit trends.
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

@@ -188,3 +188,107 @@ export async function deleteTask(id: string) {
     throw error;
   }
 }
+
+export type TradeOutcome = "TARGET_HIT" | "SL_HIT" | "BREAK_EVEN";
+
+export type Trade = {
+  id: string;
+  symbol?: string | null;
+  entry: string;
+  exit: string;
+  outcome: TradeOutcome;
+  note?: string | null;
+  date: string;
+  created_at?: string;
+};
+
+export type NewTrade = {
+  symbol?: string | null;
+  entry: string;
+  exit: string;
+  outcome: TradeOutcome;
+  note?: string | null;
+  date: string;
+};
+
+export type TradeUpdates = Partial<
+  Pick<Trade, "symbol" | "entry" | "exit" | "outcome" | "note">
+>;
+
+export async function getTrades(date: string) {
+  const { data, error } = await supabase
+    .from("trading_journal")
+    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .eq("date", date)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies Trade[];
+}
+
+export async function getTradesInRange(startDate: string, endDate: string) {
+  const { data, error } = await supabase
+    .from("trading_journal")
+    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .gte("date", startDate)
+    .lte("date", endDate)
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies Trade[];
+}
+
+export async function createTrade(trade: NewTrade) {
+  const { data, error } = await supabase
+    .from("trading_journal")
+    .insert({
+      symbol: trade.symbol ?? null,
+      entry: trade.entry,
+      exit: trade.exit,
+      outcome: trade.outcome,
+      note: trade.note ?? null,
+      date: trade.date,
+    })
+    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies Trade;
+}
+
+export async function updateTrade(id: string, updates: TradeUpdates) {
+  const { data, error } = await supabase
+    .from("trading_journal")
+    .update(updates)
+    .eq("id", id)
+    .select("id, symbol, entry, exit, outcome, note, date, created_at")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data satisfies Trade;
+}
+
+export async function deleteTrade(id: string) {
+  const { error } = await supabase
+    .from("trading_journal")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw error;
+  }
+}
+
